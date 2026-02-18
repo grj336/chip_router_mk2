@@ -120,4 +120,37 @@ class ChipPlacementEnv(gym.Env):
 
     def _get_observation(self):
         """Get current observation"""
-        pass
+        # Grid channels
+        occupancy_channel = self.occupancy_grid.copy()
+        congestion_channel = np.zeros((self.grid_height, self.grid_width), dtype=np.float32)
+        grid = np.stack([occupancy_channel, congestion_channel], axis=0)
+
+        # Pad node features and edge index
+        padded_node_features = np.zeros(
+            (self.num_components_max, self.node_feature_dim), dtype=np.float32
+        )
+        padded_node_features[: self.num_components] = self.node_features.cpu().numpy()
+
+        # Pad edge index
+        max_edges = self.num_components_max * self.num_components_max
+        padded_edge_index = np.zeros((2, max_edges), dtype=np.int64)
+        actual_edges = self.edge_index.shape[1]
+        padded_edge_index[:, :actual_edges] = self.edge_index.cpu().numpy()
+
+        # Current node
+        current_node = (
+            self.placement_order[self.current_step]
+            if self.current_step < self.num_components
+            else 0
+        )
+
+        # Action mask
+        action_mask = (1 - self.occupancy_grid).flatten()
+
+        return {
+            "grid": grid.astype(np.float32),
+            "node_features": padded_node_features,
+            "edge_index": padded_edge_index,
+            "current_node": int(current_node),
+            "action_mask": action_mask.astype(np.int8),
+        }
