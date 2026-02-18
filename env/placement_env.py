@@ -76,10 +76,39 @@ class ChipPlacementEnv(gym.Env):
 
         self._np_random = np.random.RandomState(seed)
 
-    def reset(self, seed=None, options=None):
-        super().reset(seed=seed)
-        self.grid = np.zeros((4, 4), dtype=np.float32)
-        return self.grid, {}
+    def reset(
+        self, seed: int = None, options: dict[str, object] | None = None
+    ) -> tuple[dict[str, object], dict[str, object]]:
+        if seed is not None:
+            self._np_random = np.random.RandomState(seed)
+            self.netlist_gen.rng = np.random.RandomState(seed)
+
+        # Sample number of components
+        self.num_components = self._np_random.randint(
+            self.num_components_min, self.num_components_max + 1
+        )
+
+        # Generate netlist
+        self.node_features, self.edge_index, _ = self.netlist_gen.generate_erdos_renyi(
+            num_nodes=self.num_components,
+            edge_probability=self.edge_probability,
+            node_feature_dim=self.node_feature_dim,
+        )
+
+        # Random placement order
+        # TODO Improve this ordering
+        self.placement_order = self._np_random.permutation(self.num_components).tolist()
+        self.current_step = 0
+
+        # Reset placement state - zero the grid and placed nodes
+        self.occupancy_grid = np.zeros((self.grid_height, self.grid_width), dtype=np.float32)
+        self.placed_positions = {}
+        self.placed_nodes = []
+
+        observation = self._get_observation()
+        info = {"num_components": self.num_components, "num_edges": self.edge_index.shape[1]}
+
+        return observation, info
 
     def step(self, action):
         # TODO: Implement step logic
@@ -88,3 +117,7 @@ class ChipPlacementEnv(gym.Env):
         truncated = False
         info = {}
         return self.grid, reward, terminated, truncated, info
+
+    def _get_observation(self):
+        """Get current observation"""
+        pass
