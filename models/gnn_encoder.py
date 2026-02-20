@@ -3,6 +3,7 @@ GNN encoder for netlist representation
 produces node embeddings for each node in the netlist
 """
 
+import torch
 import torch.nn as nn
 from torch_geometric.nn import GATConv, GCNConv, SAGEConv
 
@@ -60,10 +61,30 @@ class GNNEncoder(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.activation = nn.ReLU()
 
-    def forward(self, x, edge_index):
-        # for layer in self.layers:
-        # x = layer(x)
-        # x = F.relu(x)
-        # return x
+    def forward(
+        self,
+        node_features: torch.Tensor,
+        edge_index: torch.Tensor,
+        current_node: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        x = node_features
 
-        pass
+        # Apply layers
+        for i, conv in enumerate(self.convs):
+            x = conv(x, edge_index)
+            if self.batch_norms is not None:
+                x = self.batch_norms[i](x)
+
+            x = self.activation(x)
+            x = self.dropout(x)
+
+        # Shape: (N, hidden_dim)
+        if current_node is not None:
+            # Select current node
+            return x[current_node]
+        else:
+            # Return all
+            return x
+
+    def get_output_dim(self) -> int:
+        return self.hidden_dim
