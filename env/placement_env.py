@@ -110,13 +110,33 @@ class ChipPlacementEnv(gym.Env):
 
         return observation, info
 
-    def step(self, action):
+    def step(
+        self, action: np.ndarray
+    ) -> tuple[dict[str, object], float, bool, bool, dict[str, object]]:
         # TODO: Implement step logic
-        reward = 0
+        row, col = int(action[0]), int(action[1])
+        current_node = self.placement_order[self.current_step]
+
+        # Check action is valid
+        if self.occupancy_grid[row, col] > 0:
+            # Illegal
+            reward = self.illegal_placement_penalty
+            terminated = True
+            truncated = False
+            info = {"illegal_placement": True, "reason": "occupied_position"}
+            return self._get_observation(), reward, terminated, truncated, info
+
+        # Legal
+        # Place node
+        self.occupancy_grid[row, col] = 1.0
+        self.placed_positions[current_node] = (row, col)
+        self.placed_nodes.append(current_node)
+
+        reward = 0.0
         terminated = False
         truncated = False
         info = {}
-        return self.grid, reward, terminated, truncated, info
+        return self._get_observation(), reward, terminated, truncated, info
 
     def _get_observation(self):
         """Get current observation"""
