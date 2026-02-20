@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from gymnasium import spaces
 
+from .metrics import compute_incremental_wirelength
 from .netlist_generator import NetlistGenerator
 
 
@@ -132,11 +133,23 @@ class ChipPlacementEnv(gym.Env):
         self.placed_positions[current_node] = (row, col)
         self.placed_nodes.append(current_node)
 
-        reward = 0.0
+        reward = self._compute_reward(current_node, (row, col))
         terminated = False
         truncated = False
         info = {}
         return self._get_observation(), reward, terminated, truncated, info
+
+    def _compute_reward(self, node_idx: int, position: tuple[int, int]) -> float:
+        "Compute incremental wirelength reward"
+        wirelength = compute_incremental_wirelength(
+            node_idx=node_idx,
+            position=position,
+            placed_positions=self.placed_positions,
+            edge_index=self.edge_index,
+            norm="manhattan",
+        )
+        reward = self.wirelength_weight * wirelength
+        return float(reward)
 
     def _get_observation(self):
         """Get current observation"""
