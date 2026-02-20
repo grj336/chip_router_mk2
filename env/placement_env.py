@@ -134,9 +134,17 @@ class ChipPlacementEnv(gym.Env):
         self.placed_nodes.append(current_node)
 
         reward = self._compute_reward(current_node, (row, col))
-        terminated = False
+
+        self.current_step += 1
+
+        terminated = self.current_step >= self.num_components
         truncated = False
-        info = {}
+        info = {
+            "illegal_placement": False,
+            "placed_node": current_node,
+            "position": (row, col),
+            "num_placed": len(self.placed_nodes),
+        }
         return self._get_observation(), reward, terminated, truncated, info
 
     def _compute_reward(self, node_idx: int, position: tuple[int, int]) -> float:
