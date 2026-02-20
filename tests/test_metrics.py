@@ -61,7 +61,7 @@ def test_incremental_wirelength():
     )
 
     incremental_wl = calculate_incremental_wire_length(
-        node_idx=2, positions=(0, 10), placed_positions=placed, edge_index=edge_index
+        node_idx=2, position=(0, 10), placed_positions=placed, edge_index=edge_index
     )
     print(f"\nIncremental wirelength for node 2: {incremental_wl}")
     print("Expected: 5 (only edge to node 1)")
