@@ -38,7 +38,7 @@ def calculate_total_wirelength(
 
 def calculate_incremental_wire_length(
     node_idx: int,
-    positions: tuple[int, int],
+    position: tuple[int, int],
     placed_positions: dict[int, tuple[int, int]],
     edge_index: torch.tensor,
     norm: str = "manhattan",
@@ -72,12 +72,12 @@ def calculate_incremental_wire_length(
         if neighbor_idx in placed_positions:
             neighbor_pos = placed_positions[neighbor_idx]
             if norm == "manhattan":
-                dist = abs(positions[0] - neighbor_pos[0]) + abs(positions[1] - neighbor_pos[1])
+                dist = abs(position[0] - neighbor_pos[0]) + abs(position[1] - neighbor_pos[1])
             elif norm == "euclidean":
-                dist = np.linalg.norm(np.array(positions) - np.array(neighbor_pos), ord=2)
+                dist = np.linalg.norm(np.array(position) - np.array(neighbor_pos), ord=2)
             else:
                 dist = np.sqrt(
-                    (positions[0] - neighbor_pos[0]) ** 2 + (positions[1] - neighbor_pos[1]) ** 2
+                    (position[0] - neighbor_pos[0]) ** 2 + (position[1] - neighbor_pos[1]) ** 2
                 )
             total_wirelength += dist
 
@@ -87,12 +87,12 @@ def calculate_incremental_wire_length(
         if neighbor_idx in placed_positions:
             neighbor_pos = placed_positions[neighbor_idx]
             if norm == "manhattan":
-                dist = abs(positions[0] - neighbor_pos[0]) + abs(positions[1] - neighbor_pos[1])
+                dist = abs(position[0] - neighbor_pos[0]) + abs(position[1] - neighbor_pos[1])
             elif norm == "euclidean":
-                dist = np.linalg.norm(np.array(positions) - np.array(neighbor_pos), ord=2)
+                dist = np.linalg.norm(np.array(position) - np.array(neighbor_pos), ord=2)
             else:
                 dist = np.sqrt(
-                    (positions[0] - neighbor_pos[0]) ** 2 + (positions[1] - neighbor_pos[1]) ** 2
+                    (position[0] - neighbor_pos[0]) ** 2 + (position[1] - neighbor_pos[1]) ** 2
                 )
             total_wirelength += dist
 

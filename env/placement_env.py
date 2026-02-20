@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from gymnasium import spaces
 
-from .metrics import compute_incremental_wirelength
+from .metrics import calculate_incremental_wire_length
 from .netlist_generator import NetlistGenerator
 
 
@@ -90,7 +90,7 @@ class ChipPlacementEnv(gym.Env):
         )
 
         # Generate netlist
-        self.node_features, self.edge_index, _ = self.netlist_gen.generate_erdos_renyi(
+        self.node_features, self.edge_index, _ = self.netlist_gen.generate_erdos_renyi_graph(
             num_nodes=self.num_components,
             edge_probability=self.edge_probability,
             node_feature_dim=self.node_feature_dim,
@@ -149,7 +149,7 @@ class ChipPlacementEnv(gym.Env):
 
     def _compute_reward(self, node_idx: int, position: tuple[int, int]) -> float:
         "Compute incremental wirelength reward"
-        wirelength = compute_incremental_wirelength(
+        wirelength = calculate_incremental_wire_length(
             node_idx=node_idx,
             position=position,
             placed_positions=self.placed_positions,
@@ -195,3 +195,7 @@ class ChipPlacementEnv(gym.Env):
             "current_node": int(current_node),
             "action_mask": action_mask.astype(np.int8),
         }
+
+    def action_masks(self) -> np.ndarray:
+        """Get action mask for MaskablePPO."""
+        return (1 - self.occupancy_grid).flatten().astype(bool)

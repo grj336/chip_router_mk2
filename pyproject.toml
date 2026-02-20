@@ -9,6 +9,7 @@ dependencies = [
     "torch>=2.1.0",
     "numpy",
     "networkx",
+    "gymnasium",
     "ruff>=0.15.1",
 ]
 
