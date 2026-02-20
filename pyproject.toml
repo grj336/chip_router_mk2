@@ -12,6 +12,7 @@ dependencies = [
     "gymnasium",
     "ruff>=0.15.1",
     "pytest",
+    "torch-geometric>=2.7.0",
 ]
 
 [tool.pytest.ini_options]
