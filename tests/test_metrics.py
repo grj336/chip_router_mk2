@@ -67,8 +67,3 @@ def test_incremental_wirelength():
     print("Expected: 5 (only edge to node 1)")
 
     print("All tests passed!")
-
-
-if __name__ == "__main__":
-    test_total_wirelength()
-    test_incremental_wirelength()
