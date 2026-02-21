@@ -48,7 +48,3 @@ def test_cnn_encoder():
     ), "Spatial dimensions should be preserved!"
 
     print("\n✅ CNN encoder working!")
-
-
-if __name__ == "__main__":
-    test_cnn_encoder()

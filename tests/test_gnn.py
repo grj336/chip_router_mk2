@@ -54,7 +54,3 @@ def test_gnn_encoder():
     assert output_current.shape == (1, 16)
 
     print("GNN encoder tests passed!")
-
-
-if __name__ == "__main__":
-    test_gnn_encoder()
