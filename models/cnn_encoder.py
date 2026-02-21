@@ -58,20 +58,29 @@ class CNNEncoder(nn.Module):
 
         self.output_channels = hidden_channels[-1]
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, grid: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: Input tensor of shape (batch_size, input_channels, height, width)
+            grid: Input tensor of shape (batch_size, input_channels, height, width)
 
         Returns:
-            Output tensor of shape (batch_size, hidden_dim, height, width)
+            Output tensor of shape (batch_size, hidden_dim, height, width) spatial feature map
         """
-        for conv in self.convs:
+        x = grid
+
+        for i, conv in enumerate(self.convs):
             x = conv(x)
+
+            if self.batch_norms is not None:
+                x = self.batch_norms[i](x)
+
+            x = self.activation(x)
+            x = self.dropout(x)
+
         return x
 
-    def get_output_dim(self) -> int:
+    def get_output_channels(self) -> int:
         """
-        Returns the output dimension of the encoder.
+        Returns the output channels of the encoder.
         """
-        return self.hidden_dim
+        return self.output_channels
