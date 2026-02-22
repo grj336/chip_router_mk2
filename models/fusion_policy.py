@@ -91,4 +91,68 @@ class ChipPlacementFeaturesExtractor(BaseFeaturesExtractor):
 
         self.spatial_features: torch.Tensor | None = None
 
-        pass
+    def forward(self, observations: dict[str, torch.Tensor]) -> torch.Tensor:
+        """Forward pass - get features from observations"""
+
+        # Unpack observations
+        grid = observations["grid"]  # (B, C, H, W)
+        node_features = observations["node_features"]  # (B, N, F)
+        edge_index = observations["edge_index"]  # (2, E)
+        current_node = observations["current_node"]  # (B,)
+
+        batch_size = grid.shape[0]  # (B,)
+
+        # Process spatial features with CNN encoder
+        cnn_features = self.cnn_encoder(grid)  # (B, C_cnn, H, W)
+
+        # Process graph with GNN (batched)
+        gnn_embeddings_list = []
+
+        for i in range(batch_size):
+            # Extract graph data for current sample
+            node_feat_i = node_features[i]  # (N_i, F)
+            edge_index_i = edge_index[i]  # (2, E_i)
+            current_node_i = current_node[i : i + 1]  # (1,)
+
+            # Filter out padding edges
+            valid_edges = ~((edge_index_i[0] == 0) & (edge_index_i[1] == 0))
+            edge_index_i = edge_index_i[:, valid_edges]
+
+            # Get embedding for current node
+            node_embedding = self.gnn_encoder(
+                node_features=node_feat_i, edge_index=edge_index_i, current_node=current_node_i
+            )  # (1, hidden_dim)
+
+            gnn_embeddings_list.append(node_embedding)
+
+        gnn_ebeddings = torch.cat(gnn_embeddings_list, dim=0)  # (B, hidden_dim)
+
+        # Broadcast node embedding to grid size
+        # (B, hidden_dim) -> (B, hidden_dim, 1, 1) -> (B, hidden_dim, H, W)
+        gnn_spatial = gnn_ebeddings.unsqueeze(-1).unsqueeze(-1)
+        gnn_spatial = gnn_spatial.expand(-1, -1, self.grid_height, self.grid_width)
+
+        # Concatenate with CNN features
+        # (B, C_cnn, H, W) + (B, hidden_dim, H, W) -> (B, C_cnn + hidden_dim, H, W)
+        fused = torch.cat([cnn_features, gnn_spatial], dim=1)  # (B, C_cnn + hidden_dim, H, W)
+
+        # Apply fusion layers
+        x = fused
+        for conv in self.fusion_convs:
+            x = conv(x)
+            x = self.fusion_activation(x)
+
+        # Store spatial features for actor head
+        self.spatial_features = x  # (B, C_fusion, H, W)
+
+        # Flatten for value head
+        features = x.flatten(start_dim=1)  # (B, C_fusion * H * W)
+
+        return features
+
+    def get_spatial_features(self) -> torch.Tensor:
+        """Get spatial features for actor head"""
+        assert (
+            self.spatial_features is not None
+        ), "Spatial features not computed. Run forward pass first."
+        return self.spatial_features
