@@ -28,8 +28,15 @@ class ChipPlacementFeaturesExtractor(BaseFeaturesExtractor):
         fusion_config: dict[str, object],
     ):
         """Init fusion feature extractor"""
-        # Extract shapes
+        # Feature dim for value head (flattened)
         grid_shape = observation_space["grid"].shape  # (C, H, W)
+        fusion_channels = fusion_config["fusion_channels"]
+        features_dim = fusion_channels[-1] * grid_shape[1] * grid_shape[2]
+
+        # Initialise base class
+        super().__init__(observation_space, features_dim=features_dim)
+
+        # Extract shapes
         self.grid_channels = grid_shape[0]
         self.grid_height = grid_shape[1]
         self.grid_width = grid_shape[2]
@@ -82,13 +89,6 @@ class ChipPlacementFeaturesExtractor(BaseFeaturesExtractor):
             )
 
         self.fusion_activation = nn.ReLU()
-
-        # Feature dim for value head (flattened)
-        self._features_dim = fusion_channels[-1] * self.grid_height * self.grid_width
-
-        # Initialise base class
-        super().__init__(observation_space, features_dim=self._features_dim)
-
         self.spatial_features: torch.Tensor | None = None
 
     def forward(self, observations: dict[str, torch.Tensor]) -> torch.Tensor:
