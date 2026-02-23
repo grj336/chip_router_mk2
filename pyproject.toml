@@ -13,6 +13,7 @@ dependencies = [
     "ruff>=0.15.1",
     "pytest",
     "torch-geometric>=2.7.0",
+    "stable-baselines3>=2.7.1",
 ]
 
 [tool.pytest.ini_options]
