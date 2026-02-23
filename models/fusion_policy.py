@@ -271,3 +271,52 @@ class ChipPlacementFusionPolicy(ActorCriticPolicy):
         value = self.value_net(features)
 
         return actions, value, log_prob
+
+    def evaluate_actions(
+        self,
+        obs: dict[str, torch.Tensor],
+        actions: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Evaluate actions
+
+        Args:
+            obs: Observation
+            actions: Actions (B, 2) as (row, col)
+
+        Returns:
+            Tuple of (action, value, log_prob)
+        """
+
+        # Extract features from observations
+        features = self.feature_extractor(obs)  # (B, features_dim)
+
+        # Get spatial features from actor head
+        spatial_features = self.fetures_extractor.get_spatial_features()
+
+        # Actor forward
+        logits = self.actor_head(spatial_features)  # (B, H*W)
+
+        # Apply action mask if available
+        if "action_mask" in obs:
+            action_mask = obs["action_mask"]  # (B, H*W)
+            logits = torch.where(
+                action_mask.bool(),
+                logits,
+                torch.tensor(-1e8, dtype=logits.dtype, device=logits.device),
+            )
+
+        # Get action distribution
+        distribution = torch.distributions.Categorical(logits=logits)
+
+        # Convert MultiDiscrete actions to flat indices
+        actions_flat = actions[:, 0] * self.grid_width + actions[:, 1]
+
+        # Get log probability
+        log_prob = distribution.log_prob(actions_flat)
+        entropy = distribution.entropy()
+
+        # Get value
+        values = self.value_net(features)
+
+        return values, log_prob, entropy
