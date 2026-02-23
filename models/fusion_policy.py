@@ -320,3 +320,29 @@ class ChipPlacementFusionPolicy(ActorCriticPolicy):
         values = self.value_net(features)
 
         return values, log_prob, entropy
+
+    def _build(self, lr_schedule: Schedule) -> None:
+        """Build the policy network"""
+        # Create feature extractor
+        self.feature_extractor = ChipPlacementFeaturesExtractor(
+            observation_space=self.observation_space,
+            gnn_config=self.gnn_config,
+            cnn_config=self.cnn_config,
+            fusion_config=self.fusion_config,
+        )
+
+        # Build value network
+        self.value_net = nn.Sequential(
+            nn.Linear(self.feature_extractor.features_dim, self.net_arch[0]),
+            nn.ReLU(),
+            nn.Linear(self.net_arch[0], self.net_arch[1]),
+            nn.ReLU(),
+            nn.Linear(self.net_arch[1], 1),
+        )
+
+        # Initialise optimiser
+        self.optimizer = self.optimizer_class(
+            self.parameters(),
+            lr=lr_schedule(1),
+            **self.optimizer_kwargs,
+        )
