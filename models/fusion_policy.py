@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
 from gymnasium import spaces
+from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from stable_baselines3.common.type_aliases import Schedule
 
 from .cnn_encoder import CNNEncoder
 from .gnn_encoder import GNNEncoder
@@ -156,3 +158,116 @@ class ChipPlacementFeaturesExtractor(BaseFeaturesExtractor):
             self.spatial_features is not None
         ), "Spatial features not computed. Run forward pass first."
         return self.spatial_features
+
+
+class ChipPlacementFusionPolicy(ActorCriticPolicy):
+    """
+    Custom actor-critic policy for chip placement
+    Architecture:
+        - Shared feature extractor (GNN + CNN + Fusion)
+        - Actor head: conv layer -> logits over grid positions
+        - Critic head: MLP -> state value
+    """
+
+    def __init__(
+        self,
+        observation_space: spaces.Space,
+        action_space: spaces.Space,
+        lr_schedule: Schedule,
+        gnn_config: dict[str, object],
+        cnn_config: dict[str, object],
+        fusion_config: dict[str, object],
+        net_arch: list[int] | None = None,
+        activation_fn: type[nn.Module] = nn.ReLU,
+        **kwargs,
+    ):
+        """Init policy"""
+        self.gnn_config = gnn_config
+        self.cnn_config = cnn_config
+        self.fusion_config = fusion_config
+
+        # Value head architecture
+        if net_arch is None:
+            net_arch = [256, 256]
+
+        super().__init__(
+            observation_space,
+            action_space,
+            lr_schedule,
+            net_arch=net_arch,
+            activation_fn=activation_fn,
+            **kwargs,
+        )
+
+        # Build custom actor head
+        grid_shape = observation_space["grid"].shape
+        self.grid_height = grid_shape[1]
+        self.grid_width = grid_shape[2]
+        self.num_positions = self.grid_height * self.grid_width
+
+        # Get fusion output channels
+        fusion_out_channels = fusion_config["fusion_channels"][-1]
+
+        # Actor head: conv -> 1 channel -> flatten to logits
+        self.actor_head = nn.Sequential(
+            nn.Conv2d(
+                in_channels=fusion_out_channels,
+                out_channels=fusion_config["output_channels"],
+                kernel_size=1,
+            ),
+            nn.Flatten(),  # (b, 1, H, W) -> (B, H*W)
+        )
+
+    def forward(
+        self, obs: dict[str, torch.Tensor], deterministic: bool = False
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Forward pass for action selection
+
+        Args:
+            obs: Observation
+            deterministic: Whether to use deterministic action selection
+
+        Returns:
+            Tuple of (action, value, log_prob)
+        """
+
+        # Extract features from observations
+        features = self.feature_extractor(obs)  # (B, features_dim)
+
+        # Get spatial features from actor head
+        spatial_features = self.fetures_extractor.get_spatial_features()
+
+        # Actor forward
+        logits = self.actor_head(spatial_features)  # (B, H*W)
+
+        # Apply action mask if available
+        if "action_mask" in obs:
+            action_mask = obs["action_mask"]  # (B, H*W)
+            logits = torch.where(
+                action_mask.bool(),
+                logits,
+                torch.tensor(-1e8, dtype=logits.dtype, device=logits.device),
+            )
+
+        # Get action distribution
+        distribution = torch.distributions.Categorical(logits=logits)
+
+        # Get action
+        if deterministic:
+            actions_flat = logits.argmax(dim=1)
+        else:
+            actions_flat = distribution.sample()
+
+        # Get log probability
+        log_prob = distribution.log_prob(actions_flat)
+
+        # Convert flat action to MultiDiscrete (row,col)
+        actions = torch.stack(
+            [actions_flat // self.grid_width, actions_flat % self.grid_width], dim=1
+        )
+
+        # Get value
+        value = self.value_net(features)
+
+        return actions, value, log_prob
