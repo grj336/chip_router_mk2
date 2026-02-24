@@ -236,7 +236,7 @@ class ChipPlacementFusionPolicy(ActorCriticPolicy):
         features = self.feature_extractor(obs)  # (B, features_dim)
 
         # Get spatial features from actor head
-        spatial_features = self.fetures_extractor.get_spatial_features()
+        spatial_features = self.feature_extractor.get_spatial_features()
 
         # Actor forward
         logits = self.actor_head(spatial_features)  # (B, H*W)
