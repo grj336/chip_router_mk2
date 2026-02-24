@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+
 # Add parent dir
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -30,3 +32,12 @@ def make_env(config: ExperimentConfig, rank: int = 0):
         return env
 
     return _init
+
+
+def create_vec_env(config: ExperimentConfig, n_envs: int = 4):
+    """Create vectorized environment"""
+    if n_envs == 1:
+        return DummyVecEnv([make_env(config, 0)])
+    else:
+        # Use subprocess for parallelism
+        return SubprocVecEnv([make_env(config, i) for i in range(n_envs)])
